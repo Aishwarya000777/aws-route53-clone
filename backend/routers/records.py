@@ -1,9 +1,20 @@
 import json
 import ipaddress
 import re
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    UploadFile,
+    File
+)
+import dns.zone
+import dns.name
+import dns.rdatatype
+import dns.exception
 from sqlalchemy.orm import Session
-
+from fastapi.responses import PlainTextResponse
 from database import get_db
 from models import DNSRecord, HostedZone, User
 from schemas import DNSRecordCreate, DNSRecordUpdate, DNSRecordResponse
@@ -123,6 +134,98 @@ def validate_dns_record(record_type: str, value: str):
                 raise HTTPException(400, "Invalid CAA record values")
 
 
+def parse_bind_zone_file(zone_text: str, zone_name: str):
+    """
+    Parse a BIND zone file and convert supported DNS records
+    into the format used by the application.
+    """
+    try:
+        origin = dns.name.from_text(zone_name)
+
+        zone = dns.zone.from_text(
+            zone_text,
+            origin=origin,
+            relativize=False,
+            check_origin=False
+        )
+
+    except (dns.exception.DNSException, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid BIND zone file: {str(exc)}"
+        )
+
+    parsed_records = []
+    errors = []
+
+    for record_name, node in zone.nodes.items():
+        record_name = record_name.to_text()
+
+        for rdataset in node.rdatasets:
+            record_type = dns.rdatatype.to_text(rdataset.rdtype)
+
+            if record_type not in ALLOWED_TYPES:
+                errors.append(
+                    f"Unsupported record type {record_type} for {record_name}"
+                )
+                continue
+
+            for rdata in rdataset:
+                try:
+                    if record_type in {"A", "AAAA"}:
+                        value = rdata.address
+
+                    elif record_type in {"CNAME", "NS", "PTR"}:
+                        value = rdata.target.to_text()
+
+                    elif record_type == "TXT":
+                        value = "".join(
+                            part.decode("utf-8") for part in rdata.strings
+                        )
+
+                    elif record_type == "MX":
+                        value = json.dumps({
+                            "priority": rdata.preference,
+                            "mail_server": rdata.exchange.to_text()
+                        })
+
+                    elif record_type == "SRV":
+                        value = json.dumps({
+                            "priority": rdata.priority,
+                            "weight": rdata.weight,
+                            "port": rdata.port,
+                            "target": rdata.target.to_text()
+                        })
+
+                    elif record_type == "CAA":
+                        value = json.dumps({
+                            "flags": rdata.flags,
+                            "tag": rdata.tag,
+                            "value": rdata.value.decode("utf-8")
+                        })
+
+                    validate_dns_record(record_type, value)
+
+                    parsed_records.append({
+                        "name": record_name,
+                        "type": record_type,
+                        "value": value,
+                        "ttl": rdataset.ttl,
+                        "routing_policy": "Simple"
+                    })
+
+                except (ValueError, TypeError, UnicodeDecodeError) as exc:
+                    errors.append(
+                        f"Invalid {record_type} record for {record_name}: {str(exc)}"
+                    )
+
+    return {
+        "records": parsed_records,
+        "errors": errors,
+        "total": len(parsed_records)
+    }
+
+
 def get_owned_zone(zone_id, user, db):
     zone = db.query(HostedZone).filter(
         HostedZone.id == zone_id,
@@ -134,6 +237,239 @@ def get_owned_zone(zone_id, user, db):
 
     return zone
 
+
+@router.post("/import/preview")
+async def preview_zone_import(
+    zone_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify that the hosted zone belongs to the logged-in user
+    zone = get_owned_zone(zone_id, current_user, db)
+
+    # Validate file extension
+    if not file.filename or not file.filename.lower().endswith(
+        (".zone", ".txt")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a .zone or .txt file."
+        )
+
+    # Read and validate file size
+    content = await file.read()
+
+    if len(content) > 1_000_000:
+        raise HTTPException(
+            status_code=400,
+            detail="Zone file must be smaller than 1 MB."
+        )
+
+    try:
+        zone_text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Zone file must use UTF-8 encoding."
+        )
+
+    # Parse the BIND zone file
+    result = parse_bind_zone_file(zone_text, zone.name)
+
+    return {
+        "message": "Zone file parsed successfully.",
+        "hosted_zone": zone.name,
+        "total_records": result["total"],
+        "records": result["records"],
+        "errors": result["errors"]
+    }
+
+
+@router.post("/import")
+async def import_zone_records(
+    zone_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify hosted zone ownership
+    zone = get_owned_zone(zone_id, current_user, db)
+
+    # Validate file extension
+    if not file.filename or not file.filename.lower().endswith(
+        (".zone", ".txt")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a .zone or .txt file."
+        )
+
+    # Read file
+    content = await file.read()
+
+    if len(content) > 1_000_000:
+        raise HTTPException(
+            status_code=400,
+            detail="Zone file must be smaller than 1 MB."
+        )
+
+    try:
+        zone_text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Zone file must use UTF-8 encoding."
+        )
+
+    # Parse records
+    result = parse_bind_zone_file(zone_text, zone.name)
+
+    # Reject the entire import if parsing or validation errors exist
+    if result["errors"]:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Import cancelled because the zone file contains invalid records.",
+                "errors": result["errors"]
+            }
+        )
+
+    if not result["records"]:
+        raise HTTPException(
+            status_code=400,
+            detail="No supported DNS records found in the zone file."
+        )
+
+    # Prepare database records
+    new_records = [
+        DNSRecord(
+            name=record["name"],
+            type=record["type"],
+            value=record["value"],
+            ttl=record["ttl"],
+            routing_policy=record["routing_policy"],
+            hosted_zone_id=zone.id
+        )
+        for record in result["records"]
+    ]
+
+    # Save all records in one transaction
+    try:
+        db.add_all(new_records)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to import DNS records. No records were imported."
+        )
+
+    return {
+        "message": "DNS records imported successfully.",
+        "hosted_zone": zone.name,
+        "imported_count": len(new_records)
+    }
+
+
+@router.get("/export")
+def export_zone_records(
+    zone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify hosted zone ownership
+    zone = get_owned_zone(zone_id, current_user, db)
+
+    records = (
+        db.query(DNSRecord)
+        .filter(DNSRecord.hosted_zone_id == zone.id)
+        .order_by(DNSRecord.name, DNSRecord.type)
+        .all()
+    )
+
+    zone_text = [
+        f"$ORIGIN {zone.name.rstrip('.')}.",
+        "$TTL 300",
+        ""
+    ]
+
+    for record in records:
+        try:
+            data = record.value
+
+            if record.type == "TXT":
+                escaped = data.replace("\\", "\\\\").replace('"', '\\"')
+                rdata_text = f'"{escaped}"'
+
+            elif record.type == "MX":
+                mx = json.loads(data)
+                rdata_text = (
+                    f'{mx["priority"]} {mx["mail_server"]}'
+                )
+
+            elif record.type == "SRV":
+                srv = json.loads(data)
+                rdata_text = (
+                    f'{srv["priority"]} {srv["weight"]} '
+                    f'{srv["port"]} {srv["target"]}'
+                )
+
+            elif record.type == "CAA":
+                caa = json.loads(data)
+                escaped = (
+                    caa["value"]
+                    .replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                )
+                rdata_text = (
+                    f'{caa["flags"]} {caa["tag"]} "{escaped}"'
+                )
+
+            else:
+                rdata_text = data
+
+            # Validate and normalize the record data
+            rdtype = dns.rdatatype.from_text(record.type)
+            rdata = dns.rdata.from_text(
+                dns.rdataclass.IN,
+                rdtype,
+                rdata_text,
+                origin=dns.name.from_text(zone.name)
+            )
+
+            owner = dns.name.from_text(
+                record.name,
+                origin=dns.name.from_text(zone.name)
+            )
+
+            owner_text = (
+                "@"
+                if owner == dns.name.from_text(zone.name)
+                else owner.to_text()
+            )
+
+            zone_text.append(
+                f"{owner_text} {record.ttl} IN "
+                f"{record.type} {rdata.to_text()}"
+            )
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not export record {record.name}: {str(exc)}"
+            )
+
+    filename = f"{zone.name.rstrip('.')}.zone"
+
+    return PlainTextResponse(
+        content="\n".join(zone_text) + "\n",
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
 @router.post("/", response_model=DNSRecordResponse)
 def create_record(

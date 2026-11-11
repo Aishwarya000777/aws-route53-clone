@@ -49,6 +49,8 @@ export default function HostedZoneDetailsPage() {
     const [zone, setZone] = useState<HostedZone | null>(null);
     const [records, setRecords] = useState<DNSRecord[]>([]);
     const [total, setTotal] = useState(0);
+    const [selectedRecordIds, setSelectedRecordIds] = useState<number[]>([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
 
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -140,6 +142,34 @@ export default function HostedZoneDetailsPage() {
             setLoading(false);
         }
     }, [zoneId, search, filterType, page]);
+
+
+
+    function toggleRecordSelection(recordId: number) {
+        setSelectedRecordIds((prev) =>
+            prev.includes(recordId)
+                ? prev.filter((id) => id !== recordId)
+                : [...prev, recordId]
+        );
+    }
+
+    function toggleSelectAll() {
+        const currentPageIds = records.map((record) => record.id);
+
+        const allSelected = currentPageIds.every((id) =>
+            selectedRecordIds.includes(id)
+        );
+
+        if (allSelected) {
+            setSelectedRecordIds((prev) =>
+                prev.filter((id) => !currentPageIds.includes(id))
+            );
+        } else {
+            setSelectedRecordIds((prev) =>
+                Array.from(new Set([...prev, ...currentPageIds]))
+            );
+        }
+    }
 
     useEffect(() => {
         fetchData();
@@ -349,6 +379,57 @@ export default function HostedZoneDetailsPage() {
         }
     }
 
+
+    async function deleteSelectedRecords() {
+        if (selectedRecordIds.length === 0) {
+            toast.error("Please select at least one record.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Are you sure you want to delete ${selectedRecordIds.length} selected DNS records?`
+        );
+
+        if (!confirmed) return;
+
+        setBulkDeleting(true);
+
+        try {
+            const results = await Promise.allSettled(
+                selectedRecordIds.map((recordId) =>
+                    apiRequest(
+                        `/api/hosted-zones/${zoneId}/records/${recordId}`,
+                        { method: "DELETE" }
+                    )
+                )
+            );
+
+            const successful = results.filter(
+                (result) => result.status === "fulfilled"
+            ).length;
+
+            const failed = results.length - successful;
+
+            setSelectedRecordIds([]);
+
+            if (successful > 0) {
+                toast.success(`${successful} DNS record(s) deleted successfully.`);
+            }
+
+            if (failed > 0) {
+                toast.error(`${failed} record(s) could not be deleted.`);
+            }
+
+            await fetchData();
+
+        } catch {
+            toast.error("Bulk deletion failed.");
+        } finally {
+            setBulkDeleting(false);
+        }
+    }
+
+
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     return (
@@ -372,13 +453,34 @@ export default function HostedZoneDetailsPage() {
                     </p>
                 </div>
 
-                <button
-                    onClick={openCreateModal}
-                    className="bg-[#ff9900] hover:bg-[#ec8b00] px-5 py-2.5 rounded-full font-bold flex items-center gap-2"
-                >
-                    <Plus size={17} />
-                    Create record
-                </button>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                    {selectedRecordIds.length > 0 && (
+                        <button
+                            onClick={deleteSelectedRecords}
+                            disabled={bulkDeleting}
+                            className="border border-red-500 text-red-600 hover:bg-red-50 px-5 py-2.5 rounded-full font-semibold flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {bulkDeleting ? (
+                                <Loader2 size={17} className="animate-spin" />
+                            ) : (
+                                <Trash2 size={17} />
+                            )}
+                            {bulkDeleting
+                                ? "Deleting..."
+                                : `Delete selected (${selectedRecordIds.length})`}
+                        </button>
+                    )}
+
+                    <button
+                        onClick={openCreateModal}
+                        className="bg-[#ff9900] hover:bg-[#ec8b00] px-5 py-2.5 rounded-full font-bold flex items-center gap-2"
+                    >
+                        <Plus size={17} />
+                        Create record
+                    </button>
+                </div>
+
             </div>
 
             {/* Zone information */}
@@ -468,6 +570,19 @@ export default function HostedZoneDetailsPage() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-[#f2f3f3] border-b">
                             <tr>
+                                <th className="p-4 w-12">
+                                    <input
+                                        type="checkbox"
+                                        checked={
+                                            records.length > 0 &&
+                                            records.every((record) =>
+                                                selectedRecordIds.includes(record.id)
+                                            )
+                                        }
+                                        onChange={toggleSelectAll}
+                                        aria-label="Select all records on this page"
+                                    />
+                                </th>
                                 <th className="p-4">Record name</th>
                                 <th className="p-4">Type</th>
                                 <th className="p-4">Value</th>
@@ -480,14 +595,14 @@ export default function HostedZoneDetailsPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="p-12 text-center">
+                                    <td colSpan={7} className="p-12 text-center">
                                         <Loader2 className="animate-spin mx-auto" />
                                         <p className="mt-2">Loading records...</p>
                                     </td>
                                 </tr>
                             ) : records.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-12 text-center text-gray-500">
+                                    <td colSpan={7} className="p-12 text-center text-gray-500">
                                         No DNS records found.
                                     </td>
                                 </tr>
@@ -497,6 +612,15 @@ export default function HostedZoneDetailsPage() {
                                         key={record.id}
                                         className="border-b hover:bg-gray-50"
                                     >
+
+                                        <td className="p-4">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedRecordIds.includes(record.id)}
+                                                onChange={() => toggleRecordSelection(record.id)}
+                                                aria-label={`Select ${record.name}`}
+                                            />
+                                        </td>
                                         <td className="p-4 font-semibold text-[#0972d3]">
                                             {record.name}
                                         </td>

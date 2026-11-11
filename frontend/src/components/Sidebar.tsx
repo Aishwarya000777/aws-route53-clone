@@ -1,22 +1,12 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Globe,
-  Network,
-  Activity,
-  ShieldCheck,
-  UserRound,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Settings,
-  Menu
-} from "lucide-react";
 import { useState } from "react";
+import {
+  LayoutDashboard, Globe, Network, Activity, ShieldCheck, UserRound,
+  ChevronDown, ChevronRight, PanelLeftClose
+} from "lucide-react";
 
 const navigation = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -27,50 +17,35 @@ const navigation = [
   { label: "Profiles", href: "/profiles", icon: UserRound },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <aside className="aws-sidebar">
+    <aside className={`aws-sidebar ${collapsed ? "is-collapsed" : ""}`}>
       <div className="sidebar-brand">
-        <div className="aws-logo">aws</div>
-        <span>Services</span>
-        <Menu size={18} className="ml-auto text-gray-400" />
-      </div>
-
-      <div className="sidebar-search">
-        <Search size={15} />
-        <input placeholder="Search services" />
-        <span>/</span>
+        <span className="aws-logo">aws</span>
+        <span className="sidebar-brand-label">Services</span>
+        <span className="sidebar-collapse" aria-hidden="true"><PanelLeftClose size={18} /></span>
       </div>
 
       <div className="sidebar-section">
-        <button
-          className="sidebar-section-title"
-          onClick={() => setExpanded(!expanded)}
-        >
+        <button className="sidebar-section-title" onClick={() => setExpanded((value) => !value)}>
           <span>Route 53</span>
-          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          {expanded ? <ChevronDown size={17} /> : <ChevronRight size={17} />}
         </button>
 
         {expanded && (
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Route 53 navigation">
             {navigation.map((item) => {
               const Icon = item.icon;
-              const active =
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname === item.href ||
-                    pathname.startsWith(item.href + "/");
+              const active = item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
 
               return (
-                <Link
-                  href={item.href}
-                  key={item.href}
-                  className={`sidebar-link ${active ? "active" : ""}`}
-                >
-                  <Icon size={17} strokeWidth={1.8} />
+                <Link href={item.href} key={item.href} className={`sidebar-link ${active ? "active" : ""}`}>
+                  <Icon size={18} strokeWidth={1.9} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -80,14 +55,9 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-bottom">
-        <Link href="/hosted-zones" className="sidebar-link">
-          <Settings size={17} />
-          <span>Settings</span>
-        </Link>
-        <div className="sidebar-footer">
-          © 2026 AWS Route 53 Clone
-        </div>
+        <div className="sidebar-footer">© 2026 AWS Route 53 Clone</div>
       </div>
     </aside>
   );
 }
+

@@ -15,66 +15,38 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       await login(username, password);
       toast.success("Login successful!");
       router.push("/hosted-zones");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Login failed"
-      );
+      toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#232f3e] p-5">
-      <div className="bg-white rounded-xl p-10 w-full max-w-md shadow-xl">
-        <h1 className="text-3xl font-bold text-[#232f3e] mb-2">
-          AWS Route 53
-        </h1>
-
-        <p className="text-gray-500 mb-8">
-          Sign in to your management console
-        </p>
-
-        <form onSubmit={handleLogin} className="space-y-5">
+    <main className="login-shell">
+      <section className="login-card">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+          <span className="aws-logo" style={{ color: "#fff", fontSize: 32 }}>aws</span>
+          <span style={{ color: "#aebbc9", fontSize: 13 }}>Route 53</span>
+        </div>
+        <h1>Sign in</h1>
+        <p style={{ margin: "8px 0 28px" }}>Sign in to your Route 53 management console.</p>
+        <form onSubmit={handleLogin} style={{ display: "grid", gap: 18 }}>
           <div>
-            <label className="block mb-2 font-semibold">
-              Username
-            </label>
-            <input
-              className="w-full border rounded-md p-3"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+            <label htmlFor="username">Username</label>
+            <input id="username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
           </div>
-
           <div>
-            <label className="block mb-2 font-semibold">
-              Password
-            </label>
-            <input
-              type="password"
-              className="w-full border rounded-md p-3"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
           </div>
-
-          <button
-            disabled={loading}
-            className="w-full bg-[#ff9900] p-3 rounded-md font-bold text-[#232f3e] disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
+          <button disabled={loading}>{loading ? "Signing in..." : "Sign in"}</button>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
-

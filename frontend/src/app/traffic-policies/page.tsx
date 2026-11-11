@@ -48,12 +48,14 @@ export default function TrafficPoliciesPage() {
         </button>
       </div>
 
-      <div className="border border-[#d5dbdb] rounded-lg p-4 bg-[#f9f9f9]">
+      <div className="aws-info-panel">
         <div className="flex gap-3">
-          <FileText className="text-[#0972d3] shrink-0" size={20} />
+          <FileText className="aws-info-icon shrink-0" size={20} />
           <div>
-            <h3 className="font-semibold text-sm">About traffic policies</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="aws-info-title font-semibold text-sm">
+              About traffic policies
+            </h3>
+            <p className="aws-info-description text-sm mt-1">
               Traffic policies let you define routing configurations for your
               domain, including how requests are directed to different endpoints.
             </p>

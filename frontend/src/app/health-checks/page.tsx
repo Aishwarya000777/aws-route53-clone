@@ -56,12 +56,13 @@ export default function HealthChecksPage() {
         </button>
       </div>
 
-      <div className="border border-[#d5dbdb] rounded-lg p-4 bg-[#f9f9f9]">
+
+      <div className="aws-info-panel border rounded-lg p-4">
         <div className="flex gap-3">
-          <ShieldCheck className="text-[#0972d3] shrink-0" size={20} />
+          <ShieldCheck className="text-[#0972d3] shrink-0" size={22} />
           <div>
-            <h3 className="font-semibold text-sm">About health checks</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="font-bold text-base">About health checks</h3>
+            <p className="text-sm mt-1">
               Health checks monitor the availability of endpoints, such as
               web servers. They can be used with DNS routing policies to
               direct traffic away from unhealthy endpoints.
@@ -69,6 +70,7 @@ export default function HealthChecksPage() {
           </div>
         </div>
       </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="border border-[#d5dbdb] rounded-lg p-5 bg-white">

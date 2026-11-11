@@ -191,21 +191,23 @@ export default function HostedZonesPage() {
                 </button>
             </div>
 
+
             {/* Information */}
-            <div className="border border-[#d5dbdb] rounded-lg p-4 mb-6 bg-[#f9f9f9]">
+            <div className="hosted-zone-info border rounded-lg p-4 mb-6">
                 <div className="flex gap-3">
-                    <Globe className="text-[#0972d3] shrink-0" size={20} />
+                    <Globe className="text-[#0972d3] shrink-0" size={22} />
                     <div>
-                        <h3 className="font-semibold text-sm">
+                        <h3 className="font-bold text-base">
                             About hosted zones
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm mt-1">
                             A hosted zone contains records that control how traffic is
                             routed for a domain and its subdomains.
                         </p>
                     </div>
                 </div>
             </div>
+
 
             {/* Table container */}
             <div className="border border-[#d5dbdb] rounded-lg overflow-hidden">
