@@ -1,0 +1,298 @@
+
+@import "tailwindcss";
+
+:root {
+  --aws-orange: #ff9900;
+  --aws-dark: #232f3e;
+  --aws-blue: #0972d3;
+  --aws-border: #d5dbdb;
+  --aws-bg: #f2f3f3;
+  --aws-text: #16191f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--aws-text);
+  background: white;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+}
+
+button, input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.aws-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.aws-sidebar {
+  width: 245px;
+  min-width: 245px;
+  background: #fff;
+  border-right: 1px solid var(--aws-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.sidebar-brand {
+  height: 58px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid var(--aws-border);
+  font-weight: 600;
+}
+
+.aws-logo {
+  color: #232f3e;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -2px;
+}
+
+.sidebar-search {
+  margin: 16px 12px;
+  height: 36px;
+  border: 1px solid #879596;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  gap: 8px;
+  color: #545b64;
+}
+
+.sidebar-search input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+}
+
+.sidebar-section {
+  padding: 8px 10px;
+}
+
+.sidebar-section-title {
+  width: 100%;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  font-weight: 700;
+  text-align: left;
+}
+
+.sidebar-nav {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 39px;
+  padding: 9px 12px;
+  text-decoration: none;
+  color: #333;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.sidebar-link:hover {
+  background: #f2f3f3;
+  color: #0972d3;
+}
+
+.sidebar-link.active {
+  background: #eaf4ff;
+  color: #0972d3;
+  font-weight: 700;
+  border-left: 3px solid #0972d3;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 12px;
+}
+
+.sidebar-footer {
+  padding: 14px 5px;
+  font-size: 10px;
+  color: #687078;
+}
+
+.aws-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.aws-header {
+  height: 58px;
+  background: var(--aws-dark);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.header-left,
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-service {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.header-menu,
+.header-actions button {
+  color: white;
+  background: transparent;
+  border: 0;
+}
+
+.header-search {
+  flex: 1;
+  max-width: 470px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #354354;
+  border: 1px solid #687078;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.header-search input {
+  flex: 1;
+  min-width: 0;
+  color: white;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+}
+
+.header-search input::placeholder {
+  color: #d5dbdb;
+}
+
+.header-search span {
+  font-size: 10px;
+  color: #d5dbdb;
+}
+
+.header-actions {
+  margin-left: auto;
+}
+
+.header-actions button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.account-avatar {
+  display: inline-flex;
+  width: 25px;
+  height: 25px;
+  align-items: center;
+  justify-content: center;
+  background: #ff9900;
+  border-radius: 50%;
+  color: #232f3e;
+  font-weight: bold;
+}
+
+.logout-button {
+  border-left: 1px solid #687078 !important;
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+.aws-content {
+  padding: 25px 30px;
+  min-height: calc(100vh - 58px);
+  background: white;
+}
+
+@media (max-width: 850px) {
+  .aws-sidebar {
+    width: 190px;
+    min-width: 190px;
+  }
+
+  .aws-header {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .header-search {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .aws-content {
+    padding: 18px 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .aws-sidebar {
+    width: 65px;
+    min-width: 65px;
+  }
+
+  .sidebar-brand span,
+  .sidebar-search,
+  .sidebar-section-title,
+  .sidebar-link span,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .sidebar-link {
+    justify-content: center;
+    padding: 12px 5px;
+  }
+
+  .sidebar-brand {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-service {
+    display: none;
+  }
+}
+
