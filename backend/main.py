@@ -19,14 +19,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://aws-route53-clone-rho.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Register routers AFTER creating app
 app.include_router(auth_router.router)
